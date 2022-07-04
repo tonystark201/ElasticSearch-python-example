@@ -1,0 +1,128 @@
+version: '3.0'
+
+services:
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+    container_name: es01
+    ports:
+      - 9200:9200
+      - 9301:9300
+    environment:
+      node.name: es01
+      discovery.seed_hosts: es02,es03
+      cluster.initial_master_nodes: es01,es02,es03
+      cluster.name: es_cluster
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+      - eslog1:/usr/share/elasticsearch/logs
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      elastic:
+        ipv4_address: 172.21.0.2
+
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+    container_name: es02
+    ports:
+      - 9201:9200
+      - 9302:9300
+    environment:
+      node.name: es02
+      discovery.seed_hosts: es01,es03
+      cluster.initial_master_nodes: es01,es02,es03
+      cluster.name: es_cluster
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - esdata2:/usr/share/elasticsearch/data
+      - eslog2:/usr/share/elasticsearch/logs
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      elastic:
+        ipv4_address: 172.21.0.3
+        
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+    container_name: es03
+    ports:
+      - 9202:9200
+      - 9303:9300
+    environment:
+      node.name: es03
+      discovery.seed_hosts: es01,es02
+      cluster.initial_master_nodes: es01,es02,es03
+      cluster.name: es_cluster
+      bootstrap.memory_lock: "true"
+      ES_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes:
+      - esdata3:/usr/share/elasticsearch/data
+      - eslog3:/usr/share/elasticsearch/logs
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      elastic:
+        ipv4_address: 172.21.0.4
+    
+  cerebro:
+    image: lmenezes/cerebro:0.9.2
+    container_name: cerebro
+    restart: always
+    ports:
+      - "9000:9000"
+    command:
+      - -Dhosts.0.host=http://es01:9200
+    depends_on:
+      - es01
+      - es02
+      - es03
+    networks:
+      elastic:
+        ipv4_address: 172.21.0.5
+   
+  kibana:
+    image: kibana:7.8.0
+    container_name: kibana
+    restart: always
+    environment:
+      ELASTICSEARCH_HOSTS: http://es01:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - es01
+      - es02
+      - es03
+    networks:
+      elastic:
+        ipv4_address: 172.21.0.6   
+
+networks:
+   elastic:
+      ipam:
+         config:
+         - subnet: 172.21.0.0/16
+       
+# Docker internal named volumes
+# (The internal volume make Docker need more memory such as 4GB)       
+volumes:
+  esdata1:
+    driver: local
+  eslog1:
+    driver: local
+  esdata2:
+    driver: local
+  eslog2:
+    driver: local
+  esdata3:
+    driver: local  
+  eslog3:
+    driver: local
